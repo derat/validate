@@ -21,7 +21,7 @@ func main() {
 		flag.PrintDefaults()
 	}
 	browser := flag.Bool("browser", false,
-		"Display validation results in browser (printed to stdout otherwise)")
+		"Display validation issues in browser (printed to stdout otherwise)")
 	fileType := flag.String("type", "", `File type ("html"; inferred if empty)`)
 	flag.Parse()
 
@@ -58,15 +58,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *browser {
-		if err := LaunchBrowser(out); err != nil {
-			fmt.Fprintln(os.Stderr, "Failed to display results in browser:", err)
-			os.Exit(1)
-		}
-	} else {
-		for _, is := range issues {
-			fmt.Println(is)
-			fmt.Println()
+	if len(issues) > 0 {
+		if *browser {
+			if err := validate.LaunchBrowser(out); err != nil {
+				fmt.Fprintln(os.Stderr, "Failed to display results in browser:", err)
+				os.Exit(1)
+			}
+		} else {
+			for _, is := range issues {
+				fmt.Println(is)
+				fmt.Println()
+			}
 		}
 	}
 }
