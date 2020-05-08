@@ -19,6 +19,8 @@ import (
 	if err != nil {
 		// ...
 	}
+	defer f.Close()
+
 	issues, out, err := validate.HTML(context.Background(), f)
 	if err != nil {
 		// ...
