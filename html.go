@@ -6,6 +6,7 @@ package validate
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,6 +15,9 @@ import (
 
 	"golang.org/x/net/html"
 )
+
+// Text included in https://validator.w3.org/nu/ results pages on success.
+const htmlSuccess = "The document validates according to the specified schema(s)."
 
 // HTML reads an HTML document from r and validates it using https://validator.w3.org/nu/.
 // issues describes individual issues in the page. Each entry is typically a multiline string.
@@ -32,23 +36,33 @@ func HTML(ctx context.Context, r io.Reader) (issues []string, out []byte, err er
 	if err != nil {
 		return nil, nil, err
 	}
-
 	node, err := html.Parse(bytes.NewReader(out))
 	if err != nil {
 		return nil, out, fmt.Errorf("failed to parse response: %v", err)
 	}
+	issues = extractHTMLIssues(node)
 
-	// TODO: Perform basic checking of the returned data.
-	return extractHTMLErrors(node), out, nil
+	// To avoid reporting success falsely if/when the results page changes,
+	// check that that we found either issues or the success message.
+	if len(issues) == 0 {
+		if !strings.Contains(string(out), htmlSuccess) {
+			return nil, out, errors.New("didn't find any issues or success message")
+		}
+	} else {
+		if strings.Contains(string(out), htmlSuccess) {
+			return issues, out, errors.New("found both issuess and success message")
+		}
+	}
+	return issues, out, nil
 }
 
 var spaces = regexp.MustCompile(`\s+`)
 var spacesAroundLines = regexp.MustCompile(`\s*\n\s*`)
 
-// extractHTMLErrors recursively walks n and returns an array of slices describing validation errors.
+// extractHTMLIssues recursively walks n and returns an array of slices describing validation issues.
 // n is all or part of a document returned by https://validator.w3.org/nu/, where errors are denoted
 // by <li class="error">.
-func extractHTMLErrors(n *html.Node) []string {
+func extractHTMLIssues(n *html.Node) []string {
 	if n.Type == html.ElementNode && n.Data == "li" && getAttr(n, "class") == "error" {
 		msg := strings.TrimSpace(getText(n))
 		msg = spacesAroundLines.ReplaceAllString(msg, "\n")
@@ -57,7 +71,7 @@ func extractHTMLErrors(n *html.Node) []string {
 
 	var errors []string
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		for _, e := range extractHTMLErrors(c) {
+		for _, e := range extractHTMLIssues(c) {
 			errors = append(errors, e)
 		}
 	}
