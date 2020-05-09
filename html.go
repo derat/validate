@@ -6,11 +6,11 @@ package validate
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -20,87 +20,100 @@ import (
 const htmlSuccess = "The document validates according to the specified schema(s)."
 
 // HTML reads an HTML document from r and validates it using https://validator.w3.org/nu/.
-// issues describes individual issues in the page. Each entry is typically a multiline string.
-// out contains the raw HTML page returned by the validation service.
-// If err is non-nil, an issue occurred in the validation process.
-func HTML(ctx context.Context, r io.Reader) (issues []string, out []byte, err error) {
-	body, err := post(ctx, "https://validator.w3.org/nu/",
-		map[string]string{"action": "check"},
-		[]fileInfo{{field: "uploaded_file", name: "page.html", r: r}})
+// Parsed issues and the raw HTML results page returned by the validation service are returned.
+// If the returned error is non-nil, an issue occurred in the validation process.
+func HTML(ctx context.Context, r io.Reader) ([]Issue, []byte, error) {
+	fi := fileInfo{
+		field: "uploaded_file",
+		name:  "page.html",
+		ctype: "text/html",
+		r:     r,
+	}
+	resp, err := post(ctx, "https://validator.w3.org/nu/",
+		map[string]string{"action": "check"}, []fileInfo{fi})
 	if err != nil {
 		return nil, nil, err
 	}
-	defer body.Close()
+	defer resp.Body.Close()
 
-	out, err = ioutil.ReadAll(body)
+	out, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, nil, err
 	}
+
 	node, err := html.Parse(bytes.NewReader(out))
 	if err != nil {
 		return nil, out, fmt.Errorf("failed to parse response: %v", err)
 	}
-	issues = extractHTMLIssues(node)
-
-	// To avoid reporting success falsely if/when the results page changes,
-	// check that that we found either issues or the success message.
-	if len(issues) == 0 {
-		if !strings.Contains(string(out), htmlSuccess) {
-			return nil, out, errors.New("didn't find any issues or success message")
-		}
-	} else {
-		if strings.Contains(string(out), htmlSuccess) {
-			return issues, out, errors.New("found both issuess and success message")
-		}
-	}
+	issues := extractHTMLIssues(node)
+	err = checkResponse(strings.Contains(string(out), htmlSuccess), issues)
 	return issues, out, nil
 }
 
-var spaces = regexp.MustCompile(`\s+`)
-var spacesAroundLines = regexp.MustCompile(`\s*\n\s*`)
-
-// extractHTMLIssues recursively walks n and returns an array of slices describing validation issues.
-// n is all or part of a document returned by https://validator.w3.org/nu/, where errors are denoted
-// by <li class="error">.
-func extractHTMLIssues(n *html.Node) []string {
+// extractHTMLIssues recursively walks n and returns validation issues.
+// n is all or part of a document returned by https://validator.w3.org/nu/,
+// where errors are denoted by <li class="error">.
+func extractHTMLIssues(n *html.Node) []Issue {
+	// TODO: Does the validator return warnings?
 	if n.Type == html.ElementNode && n.Data == "li" && getAttr(n, "class") == "error" {
-		msg := strings.TrimSpace(getText(n))
-		msg = spacesAroundLines.ReplaceAllString(msg, "\n")
-		return []string{msg}
+		return []Issue{makeHTMLIssue(n, Error)}
 	}
 
-	var errors []string
+	var issues []Issue
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		for _, e := range extractHTMLIssues(c) {
-			errors = append(errors, e)
+		issues = append(issues, extractHTMLIssues(c)...)
+	}
+	return issues
+}
+
+// makeHTMLIssue creates a new issue by examining the supplied <li class="error"> node.
+//
+// Here's an example error, with line breaks and whitespace added for legibility:
+//
+//   <li class="error">
+//     <p>    <strong>Error</strong>: <span>Saw <code>&lt;&gt;</code>. Probable causes:
+//       Unescaped <code>&lt;</code> (escape as <code>&amp;lt;</code>) or mistyped
+//       start tag.</span>
+//     </p>
+//     <p class="location">
+//       <a href="#cl6c14">At line <span class="last-line">6</span>, column
+//       <span class="last-col">14</span></a>
+//     </p>
+//     <p class="extract">    <code>&gt;<span class="lf" title="Line break">↩</span>ueaueohtn
+//       u&gt;&lt;<b>&gt;</b>&lt;&gt; Y<span class="lf" title="Line
+//       break">↩</span>&lt;body&gt;<span class="lf" title="Line
+//       break">↩</span>&lt;p</code>
+//     </p>
+//   </li>
+func makeHTMLIssue(li *html.Node, sev Severity) Issue {
+	is := Issue{Severity: sev}
+
+	for n := li.FirstChild; n != nil; n = n.NextSibling {
+		if n.Type != html.ElementNode || n.Data != "p" {
+			continue
+		}
+		switch getAttr(n, "class") {
+		case "location":
+			lstr := getText(n, func(n *html.Node) bool {
+				return n.Type == html.ElementNode && n.Data == "span" && getAttr(n, "class") == "last-line"
+			})
+			is.Line, _ = strconv.Atoi(strings.TrimSpace(lstr))
+
+			cstr := getText(n, func(n *html.Node) bool {
+				return n.Type == html.ElementNode && n.Data == "span" && getAttr(n, "class") == "last-col"
+			})
+			is.Col, _ = strconv.Atoi(strings.TrimSpace(cstr))
+		case "extract":
+			is.Context = strings.TrimSpace(getText(n, nil))
+		case "":
+			msg := strings.TrimSpace(getText(n, func(n *html.Node) bool {
+				return n.Type == html.ElementNode && n.Data == "span"
+			}))
+			is.Message = spacesAroundLines.ReplaceAllString(msg, "\n")
 		}
 	}
-	return errors
+
+	return is
 }
 
-// getAttr returns the first named attribute from n, or an empty string if the attribute doesn't exist.
-func getAttr(n *html.Node, name string) string {
-	for _, a := range n.Attr {
-		if a.Key == name {
-			return a.Val
-		}
-	}
-	return ""
-}
-
-// getText recursively walks n and concatenates the contents of all nodes of type html.TextNode.
-// Repeated spaces are compressed and <p> elements are converted to newlines.
-func getText(n *html.Node) string {
-	if n.Type == html.TextNode {
-		return spaces.ReplaceAllString(n.Data, " ")
-	}
-
-	var s string
-	if n.Type == html.ElementNode && n.Data == "p" {
-		s += "\n"
-	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		s += getText(c)
-	}
-	return s
-}
+var spacesAroundLines = regexp.MustCompile(`\s*\n\s*`)
