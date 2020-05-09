@@ -75,7 +75,7 @@ func AMP(ctx context.Context, r io.Reader) ([]Issue, error) {
 	for _, e := range res.Errors {
 		is := Issue{
 			Line:    e.Line,
-			Col:     e.Col,
+			Col:     e.Col + 1, // these appear to be 0-indexed
 			Message: e.Message,
 			Code:    e.Code,
 			URL:     e.SpecURL,

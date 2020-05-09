@@ -20,28 +20,39 @@ func TestAMP_Valid(t *testing.T) {
 }
 
 func TestAMP_Invalid(t *testing.T) {
-	doc := strings.Replace(minimalAMP, "<html amp", "<html ", 1)
+	doc := strings.Replace(minimalAMP, "<html amp", "<html ", 1) + "  <bogus></bogus>\n"
 	issues, err := AMP(context.Background(), strings.NewReader(doc))
 	if err != nil {
 		t.Error("AMP reported error for invalid document: ", err)
 	}
-	if len(issues) != 1 {
-		t.Errorf("AMP returned %v issues (%q); want 1", len(issues), issues)
+	if len(issues) != 2 {
+		t.Errorf("AMP returned %v issues (%q); want 2", len(issues), issues)
 	} else {
-		is := issues[0]
-		is.URL = ""
-		if want := (Issue{
+		check := func(got, want Issue, needURL bool) {
+			// URLs seem likely to change, so just check that one was set.
+			if needURL && got.URL == "" {
+				t.Errorf("AMP reported issue %q with unexpectedly empty URL", got)
+			}
+			got.URL = ""
+
+			if got != want {
+				t.Errorf("AMP reported issue %q; want %q", got, want)
+			}
+		}
+		check(issues[0], Issue{
 			Severity: Error,
 			Line:     2,
+			Col:      1,
 			Message:  "The mandatory attribute '⚡' is missing in tag 'html'.",
 			Code:     "MANDATORY_ATTR_MISSING",
-		}); is != want {
-			t.Errorf("AMP reported issue %q; want %q", is, want)
-		}
-		// URLs seem likely to change, but make sure that one is at least present.
-		if issues[0].URL == "" {
-			t.Errorf("AMP didn't return URL for issue %q", issues[0])
-		}
+		}, true /* needURL */)
+		check(issues[1], Issue{
+			Severity: Error,
+			Line:     26,
+			Col:      3,
+			Message:  "The tag 'bogus' is disallowed.",
+			Code:     "DISALLOWED_TAG",
+		}, false /* needURL */)
 	}
 }
 

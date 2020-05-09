@@ -38,7 +38,7 @@ func TestHTML_Invalid(t *testing.T) {
     <title>The title</title>
   </head>
   <body>
-    <bogus></bogus>
+    <bogus>Test</bogus>
   </body>
 </html>
 `))
@@ -52,7 +52,7 @@ func TestHTML_Invalid(t *testing.T) {
 		if want := "Element bogus not allowed as child of element body"; !strings.Contains(is.Message, want) {
 			t.Errorf("HTML returned issue %q that doesn't contain %q", is, want)
 		}
-		// The error appears to be reported at the start of the closing tag.
+		// The error appears to be reported at the end of the opening tag.
 		if is.Line != 8 || is.Col != 11 {
 			t.Errorf("HTML reported issue at %d:%d; want 8:11", is.Line, is.Col)
 		}

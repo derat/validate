@@ -99,6 +99,7 @@ func TestCSS_InvalidHTML(t *testing.T) {
 		if want := 6; is.Line != want {
 			t.Errorf("CSS returned issue on line %d; want %d", is.Line, want)
 		}
+		// The CSS validator doesn't provide columns.
 	}
 	if len(out) == 0 {
 		t.Error("CSS returned empty output")

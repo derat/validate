@@ -55,7 +55,7 @@ type Issue struct {
 	// Line contains the 1-indexed line number where the issue occurred.
 	// It is 0 if the line is unknown.
 	Line int
-	// Col contains the 0-indexed column number where the issue occurred.
+	// Col contains the 1-indexed column number where the issue occurred.
 	// It is 0 if the column is unknown.
 	Col int
 	// Message describes the issue.
