@@ -60,12 +60,19 @@ type Issue struct {
 	Col int
 	// Message describes the issue.
 	Message string
-	// Context optionally provides more detail about where the issue occurred.
+	// Code contains an optional code provided by the validator (e.g. "DUPLICATE_UNIQUE_TAG" for AMP).
+	Code string
+	// Context optionally provides more detail about the context in which the issue occurred.
 	Context string
+	// Context optionally provides a URL with more information about the issue.
+	URL string
 }
 
 func (is Issue) String() string {
 	s := fmt.Sprintf("%d:%d %s: %s", is.Line, is.Col, is.Severity, is.Message)
+	if is.Code != "" {
+		s += " (" + is.Code + ")"
+	}
 	if is.Context != "" {
 		s += " (" + is.Context + ")"
 	}

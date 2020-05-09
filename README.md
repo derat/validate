@@ -2,13 +2,19 @@
 
 [![GoDoc](https://godoc.org/github.com/derat/validate?status.svg)](https://godoc.org/github.com/derat/validate)
 
-The `github.com/derat/validate` Go package validates HTML documents using the
-W3C's "[Nu Html Checker]" and CSS using the W3C's [CSS Validation Service].
-Supplied documents are uploaded and any issues identified by the services are
-parsed and returned.
+The `github.com/derat/validate` Go package validates:
+
+*   HTML documents using the W3C's online "[Nu Html Checker]"
+*   CSS using the W3C's online [CSS Validation Service]
+*   AMP HTML documents using a local installation of the [amphtml-validator]
+    Node.js program
+
+Supplied documents are uploaded (in the case of online validators) and any
+issues identified by the validator are parsed and returned.
 
 [Nu Html Checker]: https://validator.w3.org/nu/
 [CSS Validation Service]: https://jigsaw.w3.org/css-validator/
+[amphtml-validator]: https://www.npmjs.com/package/amphtml-validator
 
 ## Usage
 
@@ -23,7 +29,7 @@ import (
 	}
 	defer f.Close()
 
-	// See also validate.CSS().
+	// See also validate.AMP() and validate.CSS().
 	issues, out, err := validate.HTML(context.Background(), f)
 	if err != nil {
 		// ...
@@ -45,6 +51,7 @@ validates a file or a document provided over stdin is also provided:
 ```sh
 % go install github.com/derat/validate/cmd/validate_page
 % validate_page -browser page.html
+% validate_page -type=amp index.amp.html
 % validate_page <style.css
 % validate_page -type=htmlcss -browser page.html  # check CSS in HTML doc
 ```

@@ -5,9 +5,11 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 	"os"
@@ -25,7 +27,8 @@ func main() {
 	}
 	browser := flag.Bool("browser", false,
 		"Display validation issues in browser (printed to stdout otherwise)")
-	fileType := flag.String("type", "", `File type: "css", "html", or "htmlcss" (validate CSS in HTML); inferred if empty`)
+	fileType := flag.String("type", "",
+		`File type: "amp", "css", "html", "htmlcss" (validate CSS in HTML); inferred if empty`)
 	flag.Parse()
 
 	var r io.Reader
@@ -36,13 +39,14 @@ func main() {
 	case 1:
 		p = flag.Arg(0)
 		if *fileType == "" {
-			if strings.HasSuffix(p, ".html") || strings.HasSuffix(p, ".htm") {
-				*fileType = "html"
+			if strings.HasSuffix(p, ".amp") || strings.HasSuffix(p, ".amp.html") {
+				*fileType = "amp"
 			} else if strings.HasSuffix(p, ".css") {
 				*fileType = "css"
+			} else if strings.HasSuffix(p, ".html") || strings.HasSuffix(p, ".htm") {
+				*fileType = "html"
 			}
 		}
-
 		f, err := os.Open(p)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Failed to open input file:", err)
@@ -66,7 +70,12 @@ func main() {
 		ctype := http.DetectContentType(b)
 		switch {
 		case strings.HasPrefix(ctype, "text/html"):
-			*fileType = "html"
+			lower := strings.ToLower(string(b))
+			if strings.Contains(lower, "<html amp>") || strings.Contains(lower, "<html ⚡>") {
+				*fileType = "amp"
+			} else {
+				*fileType = "html"
+			}
 		case strings.HasPrefix(ctype, "text/plain"): // all we get for stylesheets :-/
 			*fileType = "css"
 		default:
@@ -80,6 +89,12 @@ func main() {
 	var err error
 
 	switch *fileType {
+	case "amp":
+		// amphtml-validator doesn't generate a results page, so make our own.
+		issues, err = validate.AMP(context.Background(), r)
+		if err == nil && *browser {
+			out, err = makeAMPResultsPage(issues)
+		}
 	case "css":
 		issues, out, err = validate.CSS(context.Background(), r, validate.Stylesheet)
 	case "html":
@@ -95,16 +110,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	if len(issues) > 0 {
-		if *browser {
-			if err := validate.LaunchBrowser(out); err != nil {
-				fmt.Fprintln(os.Stderr, "Failed to display results in browser:", err)
-				os.Exit(1)
-			}
-		} else {
-			for _, is := range issues {
-				fmt.Println(is)
-			}
+	if *browser {
+		if err := validate.LaunchBrowser(out); err != nil {
+			fmt.Fprintln(os.Stderr, "Failed to display results in browser:", err)
+			os.Exit(1)
+		}
+	} else {
+		for _, is := range issues {
+			fmt.Println(is)
 		}
 	}
 }
@@ -117,4 +130,30 @@ func guessType(r bufio.Reader) (string, error) {
 		return "", err
 	}
 	return http.DetectContentType(b), nil
+}
+
+// makeAMPResultsPage generates a minimal HTML page listing the supplied issues.
+func makeAMPResultsPage(issues []validate.Issue) ([]byte, error) {
+	tmpl := template.Must(template.New("").Parse(`<DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>AMP validation results</title>
+  </head>
+  <body>
+{{- if not .}}
+    No issues found.
+{{- else -}}
+{{range .}}
+    {{.Line}}:{{.Col}} {{.Severity}} {{.Message}} {{if .URL}}<a href="{{.URL}}">{{end}}{{.Code}}{{if .URL}}</a>{{end}}<br>
+{{- end}}
+{{- end}}
+  </body>
+</html>
+`))
+	var b bytes.Buffer
+	if err := tmpl.Execute(&b, issues); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
 }
