@@ -17,7 +17,17 @@ import (
 	"golang.org/x/net/html"
 )
 
-// Severity describes the severity of an Issue.
+// FileType describes the type of file being validated.
+type FileType string
+
+const (
+	// Stylesheet is a standalone CSS stylesheet.
+	Stylesheet FileType = "text/css"
+	// HTMLDoc is an HTML document.
+	HTMLDoc = "text/html"
+)
+
+// Severity describes the severity of an issue.
 type Severity int
 
 const (

@@ -15,7 +15,7 @@ body {
   background-color: white;
   margin: 0;
 }
-`), true /* isCSS */)
+`), Stylesheet)
 	if err != nil {
 		t.Error("CSS reported error: ", err)
 	}
@@ -32,7 +32,7 @@ func TestCSS_InvalidCSS(t *testing.T) {
 body {
   invalid-property: #aaa;
 }
-`), true /* isCSS */)
+`), Stylesheet)
 	if err != nil {
 		t.Error("CSS reported error for invalid stylesheet: ", err)
 	}
@@ -63,7 +63,7 @@ func TestCSS_ValidHTML(t *testing.T) {
   <body></body>
 </html>
 }
-`), false /* isCSS */)
+`), HTMLDoc)
 	if err != nil {
 		t.Error("CSS reported error: ", err)
 	}
@@ -85,7 +85,7 @@ func TestCSS_InvalidHTML(t *testing.T) {
   </head>
   <body></body>
 </html>
-`), false /* isCSS */)
+`), HTMLDoc)
 	if err != nil {
 		t.Error("CSS reported error for invalid stylesheet: ", err)
 	}

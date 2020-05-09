@@ -19,26 +19,12 @@ import (
 const cssSuccess = "<!-- NO ERRORS -->"
 
 // CSS reads an HTML or CSS document from r and validates its CSS content using https://jigsaw.w3.org/css-validator/.
-//
-// isCSS describes whether the supplied data is a stylesheet (true) or a HTML document containing
-// embedded stylesheets that should be validated (false). The W3C validator has the unfortunate
+// FileType describes the type of file being validated: the W3C validator seems to have the unfortunate
 // property of reporting that the data validated successfully if the wrong type is supplied.
 //
 // Parsed issues and the raw HTML results page returned by the validation service are returned.
 // If the returned error is non-nil, an issue occurred in the validation process.
-func CSS(ctx context.Context, r io.Reader, isCSS bool) ([]Issue, []byte, error) {
-	fi := fileInfo{
-		field: "file",
-		r:     r,
-	}
-	if isCSS {
-		fi.name = "data.css"
-		fi.ctype = "text/css"
-	} else {
-		fi.name = "data.html"
-		fi.ctype = "text/html"
-	}
-
+func CSS(ctx context.Context, r io.Reader, ft FileType) ([]Issue, []byte, error) {
 	// TODO: Maybe make these form values configurable.
 	// Available values can be seen in the source of https://jigsaw.w3.org/css-validator.
 	resp, err := post(ctx, "https://jigsaw.w3.org/css-validator/validator",
@@ -49,7 +35,7 @@ func CSS(ctx context.Context, r io.Reader, isCSS bool) ([]Issue, []byte, error) 
 			"vextwarning": "",        // "" ("default"), "true" ("warnings"), "false" ("errors")
 			"lang":        "en",
 		},
-		[]fileInfo{fi})
+		[]fileInfo{fileInfo{field: "file", name: "data", ctype: string(ft), r: r}})
 	if err != nil {
 		return nil, nil, err
 	}

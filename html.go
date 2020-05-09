@@ -23,14 +23,9 @@ const htmlSuccess = "The document validates according to the specified schema(s)
 // Parsed issues and the raw HTML results page returned by the validation service are returned.
 // If the returned error is non-nil, an issue occurred in the validation process.
 func HTML(ctx context.Context, r io.Reader) ([]Issue, []byte, error) {
-	fi := fileInfo{
-		field: "uploaded_file",
-		name:  "page.html",
-		ctype: "text/html",
-		r:     r,
-	}
 	resp, err := post(ctx, "https://validator.w3.org/nu/",
-		map[string]string{"action": "check"}, []fileInfo{fi})
+		map[string]string{"action": "check"},
+		[]fileInfo{fileInfo{field: "uploaded_file", name: "data", ctype: string(HTMLDoc), r: r}})
 	if err != nil {
 		return nil, nil, err
 	}

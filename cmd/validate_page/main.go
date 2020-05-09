@@ -81,11 +81,11 @@ func main() {
 
 	switch *fileType {
 	case "css":
-		issues, out, err = validate.CSS(context.Background(), r, true /* isCSS */)
+		issues, out, err = validate.CSS(context.Background(), r, validate.Stylesheet)
 	case "html":
 		issues, out, err = validate.HTML(context.Background(), r)
 	case "htmlcss":
-		issues, out, err = validate.CSS(context.Background(), r, false /* isCSS */)
+		issues, out, err = validate.CSS(context.Background(), r, validate.HTMLDoc)
 	default:
 		fmt.Fprintf(os.Stderr, "Bad -type value %q\n", *fileType)
 		os.Exit(2)
