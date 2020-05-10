@@ -15,7 +15,7 @@ import (
 // which must be present in $PATH. Issues identified by the validator are parsed and returned.
 // If the returned error is non-nil, an issue occurred in the validation process.
 //
-// There unfortunately don't appear to be any online AMP validators that can be called programattically.
+// There unfortunately don't appear to be any online AMP validators that can be called programatically.
 // As a result, this function requires that the amphtml-validator Node.js program is installed locally. See
 // https://amp.dev/documentation/guides-and-tutorials/learn/validation-workflow/validate_amp/#command-line-tool
 // for more information about installing and running amphtml-validator.
