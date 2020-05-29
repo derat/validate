@@ -190,7 +190,8 @@ func post(ctx context.Context, url string, fields map[string]string, files []fil
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, &b)
+	// TODO: Update this to use http.NewRequestWithContext (introduced in Go 1.12) someday.
+	req, err := http.NewRequest("POST", url, &b)
 	if err != nil {
 		return nil, err
 	}

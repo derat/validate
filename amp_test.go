@@ -5,6 +5,8 @@ package validate
 
 import (
 	"context"
+	"fmt"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -12,7 +14,7 @@ import (
 func TestAMP_Valid(t *testing.T) {
 	issues, err := AMP(context.Background(), strings.NewReader(minimalAMP))
 	if err != nil {
-		t.Error("AMP reported error: ", err)
+		t.Error("AMP reported error:", errorString(err))
 	}
 	if len(issues) != 0 {
 		t.Errorf("AMP returned issues: %v", issues)
@@ -23,7 +25,7 @@ func TestAMP_Invalid(t *testing.T) {
 	doc := strings.Replace(minimalAMP, "<html amp", "<html ", 1) + "  <bogus></bogus>\n"
 	issues, err := AMP(context.Background(), strings.NewReader(doc))
 	if err != nil {
-		t.Error("AMP reported error for invalid document: ", err)
+		t.Error("AMP reported error for invalid document:", errorString(err))
 	}
 	if len(issues) != 2 {
 		t.Errorf("AMP returned %v issues (%q); want 2", len(issues), issues)
@@ -54,6 +56,14 @@ func TestAMP_Invalid(t *testing.T) {
 			Code:     "DISALLOWED_TAG",
 		}, false /* needURL */)
 	}
+}
+
+func errorString(err error) string {
+	s := err.Error()
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		s += fmt.Sprintf(" (%v)", string(exitErr.Stderr))
+	}
+	return s
 }
 
 // This comes from https://amp.dev/documentation/guides-and-tutorials/start/create/basic_markup/.

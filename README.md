@@ -1,6 +1,7 @@
 # validate
 
 [![GoDoc](https://godoc.org/github.com/derat/validate?status.svg)](https://godoc.org/github.com/derat/validate)
+[![Build Status](https://travis-ci.org/derat/validate.svg?branch=master)](https://travis-ci.org/derat/validate)
 
 The `github.com/derat/validate` Go package validates:
 
