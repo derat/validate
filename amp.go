@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os/exec"
 )
@@ -45,8 +46,14 @@ func AMP(ctx context.Context, r io.Reader) ([]Issue, error) {
 	cmd := exec.CommandContext(ctx, exe, "--format=json", "-")
 	cmd.Stdin = r
 	cmd.Stdout = &b
-	if err := cmd.Run(); err != nil {
-		return nil, err
+
+	// amphtml-validator appears to exit with 1 if it identifies errors (but not just warnings).
+	// Only report other errors here.
+	runErr := cmd.Run()
+	if runErr != nil {
+		if _, ok := runErr.(*exec.ExitError); !ok {
+			return nil, runErr
+		}
 	}
 
 	// For reasons unclear to me, the JSON object printed by amphtml-validator is wrapped
@@ -70,8 +77,8 @@ func AMP(ctx context.Context, r io.Reader) ([]Issue, error) {
 		return nil, err
 	}
 
-	var issues []Issue
 	res := out.Result
+	var issues []Issue
 	for _, e := range res.Errors {
 		is := Issue{
 			Line:    e.Line,
@@ -85,5 +92,10 @@ func AMP(ctx context.Context, r io.Reader) ([]Issue, error) {
 		}
 		issues = append(issues, is)
 	}
-	return issues, checkResponse(res.Status == "PASS", issues)
+
+	passed := res.Status == "PASS"
+	if passed && runErr != nil {
+		return issues, fmt.Errorf("%v reported pass but exited with error: %v", exe, runErr)
+	}
+	return issues, checkResponse(passed, issues)
 }
