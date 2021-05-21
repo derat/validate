@@ -46,14 +46,14 @@ func TestAMP_Invalid(t *testing.T) {
 			Line:     2,
 			Col:      1,
 			Message:  "The mandatory attribute '⚡' is missing in tag 'html'.",
-			Code:     "MANDATORY_ATTR_MISSING",
+			Code:     "5",
 		}, true /* needURL */)
 		check(issues[1], Issue{
 			Severity: Error,
 			Line:     26,
 			Col:      3,
 			Message:  "The tag 'bogus' is disallowed.",
-			Code:     "DISALLOWED_TAG",
+			Code:     "2",
 		}, false /* needURL */)
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strconv"
 )
 
 // AMP reads an AMP HTML document from r and validates it by running the amphtml-validator program,
@@ -64,12 +65,12 @@ func AMP(ctx context.Context, r io.Reader) ([]Issue, error) {
 			// https://github.com/ampproject/amphtml/blob/master/validator/validator.proto.
 			Status string `json:"status"` // UNKNOWN, PASS, FAIL
 			Errors []struct {
-				Severity string `json:"severity"` // UNKNOWN_SEVERITY, ERROR, WARNING
-				Line     int    `json:"line"`
-				Col      int    `json:"col"`
-				Message  string `json:"message"`
-				Code     string `json:"code"`
-				SpecURL  string `json:"specUrl"`
+				Severity string          `json:"severity"` // UNKNOWN_SEVERITY, ERROR, WARNING
+				Line     int             `json:"line"`
+				Col      int             `json:"col"`
+				Message  string          `json:"message"`
+				Code     json.RawMessage `json:"code"` // either number or string? see below
+				SpecURL  string          `json:"specUrl"`
 			} `json:"errors"`
 		} `json:"-,"` // trailing comma since '-' usually means 'ignore'
 	}{}
@@ -84,12 +85,23 @@ func AMP(ctx context.Context, r io.Reader) ([]Issue, error) {
 			Line:    e.Line,
 			Col:     e.Col + 1, // these appear to be 0-indexed
 			Message: e.Message,
-			Code:    e.Code,
 			URL:     e.SpecURL,
 		}
 		if e.Severity == "WARNING" {
 			is.Severity = Warning
 		}
+
+		// It looks like amphtml-validator got changed at some point (May 2021?) such that the
+		// 'code' field is a number (e.g. 5) rather than a string (e.g. "MANDATORY_ATTR_MISSING").
+		// Handle either case.
+		var scode string
+		var icode int
+		if err := json.Unmarshal(e.Code, &scode); err == nil {
+			is.Code = scode
+		} else if err := json.Unmarshal(e.Code, &icode); err == nil {
+			is.Code = strconv.Itoa(icode)
+		}
+
 		issues = append(issues, is)
 	}
 

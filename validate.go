@@ -60,7 +60,7 @@ type Issue struct {
 	Col int
 	// Message describes the issue.
 	Message string
-	// Code contains an optional code provided by the validator (e.g. "DUPLICATE_UNIQUE_TAG" for AMP).
+	// Code contains an optional code provided by the validator.
 	Code string
 	// Context optionally provides more detail about the context in which the issue occurred.
 	Context string
