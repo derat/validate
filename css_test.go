@@ -17,7 +17,7 @@ body {
 }
 `), Stylesheet)
 	if err != nil {
-		t.Error("CSS reported error: ", err)
+		t.Error("CSS reported error:", err)
 	}
 	if len(issues) != 0 {
 		t.Errorf("CSS returned issues: %v", issues)
@@ -34,7 +34,7 @@ body {
 }
 `), Stylesheet)
 	if err != nil {
-		t.Error("CSS reported error for invalid stylesheet: ", err)
+		t.Error("CSS reported error for invalid stylesheet:", err)
 	}
 	if len(issues) != 1 {
 		t.Errorf("CSS returned %v issues (%q); want 1", len(issues), issues)
