@@ -30,14 +30,16 @@ func TestAMP_Invalid(t *testing.T) {
 	if len(issues) != 2 {
 		t.Errorf("AMP returned %v issues (%q); want 2", len(issues), issues)
 	} else {
-		check := func(got, want Issue, needURL bool) {
+		check := func(got, want Issue, altCode string, needURL bool) {
 			// URLs seem likely to change, so just check that one was set.
 			if needURL && got.URL == "" {
 				t.Errorf("AMP reported issue %q with unexpectedly empty URL", got)
 			}
 			got.URL = ""
 
-			if got != want {
+			altWant := want
+			altWant.Code = altCode
+			if got != want && got != altWant {
 				t.Errorf("AMP reported issue %q; want %q", got, want)
 			}
 		}
@@ -47,14 +49,14 @@ func TestAMP_Invalid(t *testing.T) {
 			Col:      1,
 			Message:  "The mandatory attribute '⚡' is missing in tag 'html'.",
 			Code:     "5",
-		}, true /* needURL */)
+		}, "MANDATORY_ATTR_MISSING", true /* needURL */)
 		check(issues[1], Issue{
 			Severity: Error,
 			Line:     26,
 			Col:      3,
 			Message:  "The tag 'bogus' is disallowed.",
 			Code:     "2",
-		}, false /* needURL */)
+		}, "DISALLOWED_TAG", false /* needURL */)
 	}
 }
 
