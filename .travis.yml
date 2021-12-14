@@ -1,8 +1,0 @@
-language: go
-
-before_install:
-  - sudo apt-get install npm
-  - npm install -g amphtml-validator
-
-go:
-  - 1.x
