@@ -8,7 +8,3 @@ steps:
         apt-get install -y npm
         npm install -g amphtml-validator
         go test -v ./...
-
-tags:
-  - commit-$COMMIT_SHA
-  - trigger-name-$TRIGGER_NAME

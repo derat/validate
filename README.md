@@ -1,7 +1,7 @@
 # validate
 
 [![GoDoc](https://godoc.org/github.com/derat/validate?status.svg)](https://godoc.org/github.com/derat/validate)
-![Build Status](https://storage.googleapis.com/derat-build-badges/8e6f9183-1faf-4d21-bf76-51440cb8c265.svg)
+[![Build Status](https://storage.googleapis.com/derat-build-badges/8e6f9183-1faf-4d21-bf76-51440cb8c265.svg)](https://storage.googleapis.com/derat-build-badges/8e6f9183-1faf-4d21-bf76-51440cb8c265.html)
 
 The `github.com/derat/validate` Go package validates:
 
