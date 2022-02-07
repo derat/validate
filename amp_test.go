@@ -6,7 +6,10 @@ package validate
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -58,6 +61,73 @@ func TestAMP_Invalid(t *testing.T) {
 			Code:     "2",
 		}, "DISALLOWED_TAG", false /* needURL */)
 	}
+}
+
+func TestAMPFiles_Valid(t *testing.T) {
+	dir := makeTempDir(t)
+	defer os.RemoveAll(dir)
+
+	p1 := filepath.Join(dir, "1.html")
+	p2 := filepath.Join(dir, "2.html")
+	for _, p := range []string{p1, p2} {
+		if err := ioutil.WriteFile(p, []byte(minimalAMP), 0644); err != nil {
+			t.Fatalf("Failed writing %v: %v", p, err)
+		}
+	}
+	fileIssues, err := AMPFiles(context.Background(), []string{p1, p2})
+	if err != nil {
+		t.Error("AMPFiles failed: ", errorString(err))
+	}
+	for p, issues := range fileIssues {
+		if len(issues) != 0 {
+			t.Errorf("AMPFiles returned issues for %v: %v", p, issues)
+		}
+	}
+}
+
+func TestAMPFiles_Invalid(t *testing.T) {
+	dir := makeTempDir(t)
+	defer os.RemoveAll(dir)
+
+	good := filepath.Join(dir, "good.html")
+	if err := ioutil.WriteFile(good, []byte(minimalAMP), 0644); err != nil {
+		t.Fatalf("Failed writing %v: %v", good, err)
+	}
+	bad := filepath.Join(dir, "bad.html")
+	badData := strings.Replace(minimalAMP, "<html amp", "<html ", 1)
+	if err := ioutil.WriteFile(bad, []byte(badData), 0644); err != nil {
+		t.Fatalf("Failed writing %v: %v", bad, err)
+	}
+
+	fileIssues, err := AMPFiles(context.Background(), []string{good, bad})
+	if err != nil {
+		t.Error("AMPFiles failed: ", errorString(err))
+	}
+	if len(fileIssues) != 2 {
+		t.Errorf("AMPFiles reported results for %v file(s); want 2", len(fileIssues))
+	}
+	if got := fileIssues[good]; len(got) != 0 {
+		t.Errorf("Wanted no errors for %v; got %+v", good, got)
+	}
+	if got := fileIssues[bad]; len(got) != 1 {
+		t.Errorf("Wanted 1 error for %v; got %+v", bad, got)
+	}
+}
+
+func makeTempDir(t *testing.T) string {
+	dir, err := ioutil.TempDir("", "validate_test.*")
+	if err != nil {
+		t.Fatal("Failed creating temp dir: ", err)
+	}
+
+	// Make sure that amphtml-validator can read the files even if it's running as a different user.
+	// The directory created by T.Dir() doesn't seem to be world-readable.
+	if err := os.Chmod(dir, 0755); err != nil {
+		os.RemoveAll(dir)
+		t.Fatalf("Failed making %v world-readable: %v", dir, err)
+	}
+
+	return dir
 }
 
 func errorString(err error) string {
