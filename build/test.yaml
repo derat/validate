@@ -2,7 +2,8 @@ steps:
   - name: golang
     entrypoint: sh
     args:
-      - "-c"
+      - '-e'
+      - '-c'
       - |
         apt-get update
         apt-get install -y npm
